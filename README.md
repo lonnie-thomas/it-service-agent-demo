@@ -184,6 +184,15 @@ $ python -m pytest
 
 Coverage includes: ticket parsing, retrieval and citations, runbook poisoning, allowlist and parameter validation, executor least privilege, approval forgery / expiry / replay / wrong plan / under-privileged approver / self-approval, audit modification / deletion / reordering / insertion / truncation, prompt-injection payloads, hostile LLM output, executor failures and silent no-ops, and the CLI flow.
 
+## Independent security testing
+
+The sibling project [`agent-security-test-kit`](../agent-security-test-kit) runs a black-box suite (hidden instructions in
+tickets, unauthorized actions, forged and replayed approvals, false "done" claims, audit-log tampering) against this agent
+through an adapter. Result at commit `c0a973d`: 30/30 tests (83/83 cases) pass; the same suite fails 26 of 30 tests on a
+deliberately vulnerable toy agent, and fails the expected test when I disable single controls here (replay protection,
+signature check, post-condition check, hash-chain check). Caveat: the kit uses the deterministic mock model, so it tests the
+controls, not a live model's resistance to persuasion.
+
 ## Known limitations (read before reusing)
 
 * The executor is a simulator. A real deployment needs real identity, network, and change-management integration.
