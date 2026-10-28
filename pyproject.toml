@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "it-service-agent-demo"
+version = "0.1.0"
+description = "A controlled AI IT-service agent demo: runbook-grounded plans, human approval gate, hash-chained audit log, mock executor."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Lonnie Thomas" }]
+dependencies = []          # standard library only; the LLM adapter uses urllib
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+itsa = "it_service_agent.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
