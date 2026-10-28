@@ -1,0 +1,6 @@
+{
+  "id": "INC-1007",
+  "title": "Unfamiliar sign-in alert on my account",
+  "body": "I got an impossible travel alert and an unexpected multi-factor authentication prompt. I think someone else is signed in as me.",
+  "requester": "casey.morgan@example.test"
+}

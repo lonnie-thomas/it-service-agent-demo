@@ -1,0 +1,7 @@
+{
+  "id": "INC-1001",
+  "title": "Locked out of my account",
+  "body": "Hi, I changed my password yesterday and now my account says it is locked after too many sign-in attempts. I cannot get into email or Teams. Please help.",
+  "requester": "jordan.lee@example.test",
+  "affected_user": "jordan.lee@example.test"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "INC-1004",
+  "title": "Request access to standard software group",
+  "body": "Please add Casey to the standard collaboration software group so they can use the shared planning tools. Manager approval is on file.",
+  "requester": "sam.rivera@example.test",
+  "affected_user": "casey.morgan@example.test",
+  "fields": {
+    "group": "SG-Collab-Basic"
+  }
+}

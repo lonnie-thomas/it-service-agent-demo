@@ -1,0 +1,6 @@
+{
+  "id": "INC-1003",
+  "title": "File share unavailable or very slow",
+  "body": "The shared drive is slow and some folders are unavailable for the whole team. Monitoring shows the service: file-share as degraded.",
+  "requester": "casey.morgan@example.test"
+}

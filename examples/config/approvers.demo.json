@@ -1,0 +1,20 @@
+{
+  "_comment": "SYNTHETIC DEMO KEYS ONLY. These are throwaway values committed on purpose for the demo. Never reuse; never put real keys in a repo.",
+  "approvers": {
+    "jamie.park@example.test": {
+      "role": "service_desk_analyst",
+      "max_risk": "low",
+      "key_hex": "973adce7a917a03db7339975f180497a78b92fc2e0b45bdcbbdf416fd2325d68"
+    },
+    "pat.ortiz@example.test": {
+      "role": "service_desk_lead",
+      "max_risk": "medium",
+      "key_hex": "f3874a8d72df4f5e7406731247ac30358ecef60730943656f737b011e316903d"
+    },
+    "riley.chen@example.test": {
+      "role": "it_ops_manager",
+      "max_risk": "high",
+      "key_hex": "5eb4b52f698d028799ca49889e203a91672872593ddb7935816a41f4df9bd89c"
+    }
+  }
+}

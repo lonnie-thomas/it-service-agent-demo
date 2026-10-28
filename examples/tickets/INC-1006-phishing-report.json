@@ -1,0 +1,6 @@
+{
+  "id": "INC-1006",
+  "title": "Suspicious email asking me to verify my password",
+  "body": "I received an email that looks like phishing: a fake invoice with a link asking for my credentials. I did not click it.",
+  "requester": "taylor.kim@example.test"
+}
