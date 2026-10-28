@@ -68,6 +68,7 @@ No `make`? Use the equivalents:
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e . -r requirements.txt
+# note: use an editable install (-e); runbooks/ and examples/ are read from the checkout, not from site-packages
 .venv/bin/python -m pytest
 PYTHON=.venv/bin/python ./scripts/demo.sh
 ```
