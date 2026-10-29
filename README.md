@@ -1,12 +1,12 @@
 # IT Service Agent Demo: a controlled AI agent for IT service management
 
-A small, fully offline-testable reference implementation of an **artificial intelligence (AI) agent that is allowed to help with IT tickets but not allowed to act on its own**.
+A reference implementation of an artificial intelligence (AI) agent that reads an information technology (IT) support ticket, cites the runbook it relied on, proposes a fix, and then **stops until a named human approves the exact plan**. Every step runs through a least-privilege allowlist and lands in a tamper-evident audit log, and you can read, run, and test every one of those controls offline in under a minute.
 
-The agent reads a ticket, retrieves and **cites** the relevant runbook sections, proposes remediation steps, and then **stops**. A named human approver must review the exact plan and sign an approval. Only then does a **least-privilege, allowlisted** mock executor carry out the steps, every step lands in a **tamper-evident (hash-chained) audit log**, and the final report says "done" only if the executor's own state proves it.
-
-> **Synthetic data only.** All users, hosts, services, printers, and keys here are invented (`example.test` addresses). Nothing connects to a real system. The "executor" is a simulator.
+> **Synthetic data only.** All users, hosts, services, printers, and keys here are invented (`example.test` addresses). Nothing connects to a real system. The "executor" is a simulator, and the default planner is a deterministic mock, not a live large language model (LLM).
 >
-> **Author:** Lonnie Thomas, an IT operations and service-delivery leader. This is a portfolio demonstration of control design for agentic AI, not a product and not a certification or compliance claim.
+> **About:** Built by Lonnie Thomas, enterprise IT leader. This is a portfolio demonstration of control design for agentic AI. It is not a product, and it makes no certification or compliance claim.
+
+**Contents:** [Why this exists](#why-this-exists) · [Who it's for and real-world uses](#who-its-for-and-real-world-uses) · [What it does and doesn't prove](#what-it-does-and-doesnt-prove) · [Architecture](#architecture) · [Quickstart](#quickstart) · [Related work](#related-work) · [Contributing and security](#contributing-and-security)
 
 ## Why this exists
 
@@ -16,9 +16,36 @@ Most "AI agent" demos show capability. Information technology (IT) leaders, incl
 |---|---|
 | Can the model run something we never approved? | Allowlist enforced twice (agent **and** executor); unlisted actions are denied by default |
 | Can a ticket talk the agent into it (prompt injection)? | Ticket text is data; actions must come from a pinned runbook template, be in scope, and be approved by a human |
-| Who approved what, and can they fake it? | Signed, time-boxed, single-use approvals bound to the SHA-256 digest of the exact plan; separation of duties |
+| Who approved what, and can they fake it? | Signed, time-boxed, single-use approvals bound to the Secure Hash Algorithm 256-bit (SHA-256) digest of the exact plan; separation of duties |
 | Can someone rewrite the history? | Append-only JSON Lines log with a SHA-256 hash chain; optional external anchor; execution fails closed if the chain is broken |
 | Will it tell us it fixed something when it did not? | Success is derived from executor result **plus** an independent post-condition check, never from model text |
+
+## Who it's for and real-world uses
+
+| If you are... | How to use this repository |
+|---|---|
+| **An IT service desk piloting AI agents** | Use it as a working pattern for "AI proposes, human approves, system executes". Copy the ticket-to-plan-to-approval flow and swap the simulator for your real ITSM (IT service management) tool, such as ServiceNow, and your real identity provider. |
+| **A security team red-teaming agents before production** | Run the sample injection ticket (INC-1005) to see hidden instructions fail to change the plan, then point the companion [agent-security-test-kit](https://github.com/lonnie-thomas/agent-security-test-kit) at your own agent to test the same classes of failure. |
+| **An internal auditor or Sarbanes-Oxley Act (SOX) control owner** | Treat the approval records, plan digests, separation-of-duties checks, and hash-chained audit log as an example of the *evidence an agent control could produce* (who approved what, when, and whether it really happened). It illustrates evidence design; it is not an audit opinion. |
+| **A buyer evaluating an "AI agent" vendor** | Use the table in [Why this exists](#why-this-exists) and the [threat model](THREAT_MODEL.md) as a question list: what is allowlisted, how are approvals bound to the exact plan, how is success verified, and how is the log protected? |
+| **A trainer or facilitator running a tabletop exercise** | Walk a group through `make demo` and `make demo-injection`, pause at the approval step, and ask "what would you check before signing?" The tamper step at the end of the demo makes a good discussion point. |
+| **An engineering team gating agent releases in continuous integration (CI)** | Run `make test` here and the kit's `agent-sec-kit run` on every change to your agent. A non-zero exit code means a control regressed, so the release stops. |
+| **An architect or governance lead** | Read [THREAT_MODEL.md](THREAT_MODEL.md) (a STRIDE threat table, with Open Worldwide Application Security Project (OWASP) and National Institute of Standards and Technology (NIST) mappings and residual risk) as a starting template for your own agent's threat model. |
+
+## What it does and doesn't prove
+
+**What the repository demonstrates (and the tests check):**
+
+* With a deterministic mock planner, the *surrounding controls* behave as designed: unlisted actions are denied, protected accounts and privileged groups are refused, approvals that are forged, expired, replayed, for a different plan, or from an under-privileged approver are rejected, and a broken audit chain stops execution.
+* The "done" report is derived from the executor's own result plus an independent state check, so a failed or silent no-op step is not reported as success.
+* The independent kit finds these same controls holding (30 of 30 tests) and finds the failures in a deliberately vulnerable toy agent.
+
+**What it does not prove:**
+
+* **It is a mock model, not a live LLM.** The default planner is rule-based. The Azure OpenAI and OpenAI adapter is unit-tested with a fake transport only and has **not** been exercised against a live endpoint. Passing here says nothing about how a real model resists persuasion; it says the controls around the model hold when the model is wrong or hostile.
+* **It is not production software.** The executor is a simulator, approvals use a shared-secret signature (hash-based message authentication code, HMAC) that a verifier could also forge, and the audit log needs external anchoring and write-once storage to resist deletion. See [Known limitations](#known-limitations-read-before-reusing).
+* **It is not a compliance artifact.** Nothing here is a SOX, NIST, OWASP, or any other framework attestation or certification. Mappings are illustrative design guidance.
+* **It does not cover every threat.** Test coverage is a fixed catalogue of scenarios on synthetic tickets. It is a baseline and regression tool, not a substitute for a formal assessment.
 
 ## Architecture
 
@@ -54,26 +81,44 @@ flowchart LR
 
 ## Quickstart
 
-Requires Python 3.10+. The agent itself has **no runtime dependencies**; `pytest` is only for tests.
+Requires Python 3.10 or newer and `git`. The agent itself has **no runtime dependencies**; `pytest` is only for tests. No API keys or network access are needed to run it (installing `pytest` needs a package index once).
 
-```bash
-git clone <this repo> && cd it-service-agent-demo
-make install          # creates .venv, installs the package and pytest
-make test             # offline test suite
-make demo             # end-to-end walk-through (see "Real output" below)
-make demo-injection   # same flow on the prompt-injection sample ticket
-```
+1. **Clone the repository.**
 
-No `make`? Use the equivalents:
+   ```bash
+   git clone https://github.com/lonnie-thomas/it-service-agent-demo.git
+   cd it-service-agent-demo
+   ```
 
-```bash
-python3 -m venv .venv && .venv/bin/pip install -e . -r requirements.txt
-# note: use an editable install (-e); runbooks/ and examples/ are read from the checkout, not from site-packages
-.venv/bin/python -m pytest
-PYTHON=.venv/bin/python ./scripts/demo.sh
-```
+2. **Create a virtual environment and install** (an *editable* install is required, because `runbooks/` and `examples/` are read from the checkout, not from site-packages):
 
-### Step by step with the CLI
+   ```bash
+   make install
+   ```
+
+   No `make`? Use: `python3 -m venv .venv && .venv/bin/pip install -e . -r requirements.txt`
+
+3. **Run the offline test suite.** Expect `90 passed`.
+
+   ```bash
+   make test            # or: .venv/bin/python -m pytest
+   ```
+
+4. **Run the end-to-end demo.** It triages a ticket, shows a refused execution without approval, approves, executes, shows a replay refused, verifies the audit hash chain, then tampers with the log and shows the tampering detected. Expect the output shown under "Real output" below.
+
+   ```bash
+   make demo            # or: PYTHON=.venv/bin/python ./scripts/demo.sh
+   ```
+
+5. **Run the prompt-injection ticket.** The plan is the same as for a benign ticket, and the hidden-text flags are shown to the approver.
+
+   ```bash
+   make demo-injection  # or: PYTHON=.venv/bin/python ./scripts/demo.sh examples/tickets/INC-1005-INJECTION-DEMO.json
+   ```
+
+6. **Try the commands yourself** (next section), then run the independent security kit against this agent (see [Independent security testing](#independent-security-testing)).
+
+### Step by step with the command line interface (CLI)
 
 ```bash
 itsa triage  examples/tickets/INC-1001-account-lockout.json --out plan.json   # proposes, executes nothing
@@ -82,7 +127,7 @@ itsa execute plan.json .itsa/approval-INC-1001.json                            #
 itsa verify-log                                                               # hash-chain integrity check
 ```
 
-(`python -m it_service_agent ...` works as well.) There is intentionally **no `--yes` / auto-approve flag**. `approve` refuses to run without either an interactive prompt or an explicit `--confirm-digest` that the approver supplies. `scripts/demo.sh` scripts that step to make a demo possible and says so in its output.
+(Run these from the virtual environment, for example `. .venv/bin/activate` first; `python -m it_service_agent ...` works as well.) There is intentionally **no `--yes` / auto-approve flag**. `approve` refuses to run without either an interactive prompt or an explicit `--confirm-digest` that the approver supplies. `scripts/demo.sh` scripts that step to make a demo possible and says so in its output.
 
 ### Sample tickets (`examples/tickets/`)
 
@@ -187,12 +232,23 @@ Coverage includes: ticket parsing, retrieval and citations, runbook poisoning, a
 
 ## Independent security testing
 
-The sibling project [`agent-security-test-kit`](../agent-security-test-kit) runs a black-box suite (hidden instructions in
+The companion project [`agent-security-test-kit`](https://github.com/lonnie-thomas/agent-security-test-kit) runs a black-box suite (hidden instructions in
 tickets, unauthorized actions, forged and replayed approvals, false "done" claims, audit-log tampering) against this agent
-through an adapter. Result at commit `c0a973d`: 30/30 tests (83/83 cases) pass; the same suite fails 26 of 30 tests on a
+through an adapter. Result for this release (version 0.1.0): 30 of 30 tests (83 of 83 cases) pass; the same suite fails 26 of 30 tests on a
 deliberately vulnerable toy agent, and fails the expected test when I disable single controls here (replay protection,
 signature check, post-condition check, hash-chain check). Caveat: the kit uses the deterministic mock model, so it tests the
 controls, not a live model's resistance to persuasion.
+
+To reproduce it, clone both repositories side by side and install both:
+
+```bash
+git clone https://github.com/lonnie-thomas/it-service-agent-demo.git
+git clone https://github.com/lonnie-thomas/agent-security-test-kit.git
+cd agent-security-test-kit
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e . -e ../it-service-agent-demo
+agent-sec-kit run --agent it-service-agent
+```
 
 ## Known limitations (read before reusing)
 
@@ -203,10 +259,24 @@ controls, not a live model's resistance to persuasion.
 * Retrieval is a small lexical ranker. It is easy to read, not state of the art.
 * Not a compliance artifact: nothing here claims alignment-by-implementation with any framework; mappings are illustrative design guidance.
 
+## Related work
+
+* **[agent-security-test-kit](https://github.com/lonnie-thomas/agent-security-test-kit)**: the independent, pytest-based security test kit for human-gated IT agents. It tests this agent and a deliberately vulnerable toy agent.
+* **An AI-agents-under-SOX controls framework** (a separate write-up by the same author): how to think about agent actions as in-scope controls for Sarbanes-Oxley Act (SOX) purposes, including approvals, segregation of duties, and evidence. This repository is a small working illustration of that kind of control design.
+* **A merger-and-acquisition (M&A) IT integration and separation playbook** (a separate write-up by the same author): practical guidance for the IT side of deal integration and carve-outs, where service-desk automation and access control have to be handled carefully.
+
+## Contributing and security
+
+Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). To report a vulnerability or a control bypass, follow [SECURITY.md](SECURITY.md) rather than opening a public issue with exploit details.
+
 ## Acronyms
 
-AI: artificial intelligence. CIO: chief information officer. IT: information technology. ITSM: IT service management. LLM: large language model. OWASP: Open Worldwide Application Security Project. NIST AI RMF: National Institute of Standards and Technology Artificial Intelligence Risk Management Framework. STRIDE: Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege. SHA-256: Secure Hash Algorithm, 256-bit. HMAC: Hash-based Message Authentication Code. JSON: JavaScript Object Notation. JSONL: JSON Lines (one JSON object per line). CLI: command line interface. Entra ID: Microsoft's cloud identity service. PIM: Privileged Identity Management. WORM: write once, read many. MIT: the MIT open-source license.
+AI: artificial intelligence. CI: continuous integration. CIO: chief information officer. IT: information technology. ITSM: IT service management. LLM: large language model. M&A: mergers and acquisitions. SOX: Sarbanes-Oxley Act. OWASP: Open Worldwide Application Security Project. NIST AI RMF: National Institute of Standards and Technology Artificial Intelligence Risk Management Framework. STRIDE: Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege. SHA-256: Secure Hash Algorithm, 256-bit. HMAC: Hash-based Message Authentication Code. JSON: JavaScript Object Notation. JSONL: JSON Lines (one JSON object per line). CLI: command line interface. Entra ID: Microsoft's cloud identity service. PIM: Privileged Identity Management. WORM: write once, read many. MIT: the MIT open-source license.
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [LICENSE](LICENSE). Copyright (c) 2026 Lonnie Thomas.
+
+---
+
+Built by Lonnie Thomas, enterprise IT leader.
